@@ -6,6 +6,7 @@ Built with Kivy · TensorFlow Lite · YOLOv8
 
 <img src="demo.gif" alt="Demo — Smart Vision detecting pedestrians and traffic lights" width="520"/>
 
+
 ---
 
 ## ✨ Features
