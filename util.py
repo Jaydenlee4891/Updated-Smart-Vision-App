@@ -151,13 +151,16 @@ def draw_detections(
 
         # Label background
         (tw, th), baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 1)
-        label_y1 = max(y1 - th - baseline - 4, 0)
-        cv2.rectangle(frame, (x1, label_y1), (x1 + tw + 4, y1), colour, -1)
+        label_h  = th + baseline + 4
+        label_y1 = max(y1 - label_h, 0)
+        label_y2 = label_y1 + label_h
+        cv2.rectangle(frame, (x1, label_y1), (x1 + tw + 4, label_y2), colour, -1)
 
-        # Label text
+        # Label text — anchored to the same (possibly clamped) box as the
+        # background above, so it can never land outside it near frame edges
         cv2.putText(
             frame, text,
-            (x1 + 2, y1 - baseline - 1),
+            (x1 + 2, label_y2 - baseline - 1),
             cv2.FONT_HERSHEY_SIMPLEX, 0.55,
             (0, 0, 0), 1, cv2.LINE_AA,
         )

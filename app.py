@@ -115,6 +115,7 @@ class InferenceWorker:
         self._announcer       = announcer
 
         self._lock             = threading.Lock()
+        self._frame_ready      = threading.Event()
         self._pending_frame:   np.ndarray | None = None
         self._latest_detections: list = []
         self._running          = False
@@ -127,11 +128,13 @@ class InferenceWorker:
 
     def stop(self) -> None:
         self._running = False
+        self._frame_ready.set()
 
     def submit(self, frame: np.ndarray) -> None:
         """Enqueue the latest camera frame (older pending frame is dropped)."""
         with self._lock:
             self._pending_frame = frame.copy()
+        self._frame_ready.set()
 
     def get_detections(self) -> list:
         """Return the most recently completed detection list (thread-safe)."""
@@ -141,12 +144,14 @@ class InferenceWorker:
     # ------------------------------------------------------------------
     def _loop(self) -> None:
         while self._running:
+            self._frame_ready.wait()
+
             with self._lock:
                 frame = self._pending_frame
                 self._pending_frame = None
+                self._frame_ready.clear()
 
             if frame is None:
-                time.sleep(0.005)
                 continue
 
             detections = self._infer(frame)
@@ -269,9 +274,7 @@ class SmartVisionApp(App):
         if not ret:
             return
 
-        frame = cv2.flip(frame, 0)
-
-        # Push frame to background inference thread
+        # Push the raw frame to background inference thread
         if self.worker:
             self.worker.submit(frame)
 
@@ -285,6 +288,10 @@ class SmartVisionApp(App):
             self.detection_lbl.text = "  ·  ".join(filter(None, unique_labels))
         else:
             self.detection_lbl.text = ""
+
+        # Flip for Kivy's bottom-up texture coordinate system (display only —
+        # must happen after inference/drawing, which need the upright frame)
+        frame = cv2.flip(frame, 0)
 
         # Render to Kivy texture
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -303,13 +310,17 @@ class SmartVisionApp(App):
     @staticmethod
     def _error_screen(message: str):
         layout = BoxLayout(orientation='vertical', padding=24)
-        layout.add_widget(Label(
+        label = Label(
             text=f"[b]Could not start Smart Vision[/b]\n\n{message}",
             markup=True,
             halign="center",
             valign="middle",
             color=(1.0, 0.4, 0.4, 1),
-        ))
+        )
+        # halign/valign only take effect once text_size is bound to the
+        # widget's own size — otherwise they're a silent no-op in Kivy.
+        label.bind(size=label.setter("text_size"))
+        layout.add_widget(label)
         return layout
 
 

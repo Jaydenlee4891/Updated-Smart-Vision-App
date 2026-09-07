@@ -121,7 +121,7 @@ Edit `buildozer.spec`:
 
 ```ini
 source.include_exts = py,png,jpg,kv,atlas,tflite
-requirements = python3,kivy,plyer,numpy,opencv-python-headless,tensorflow-lite
+requirements = python3,kivy,plyer,numpy,opencv-python-headless,tensorflow
 android.permissions = CAMERA
 ```
 
